@@ -1,0 +1,118 @@
+% Construct regression model for specific store
+% input: date information (weekday, holiday)
+% input: weather information (only maximum and minimum temperature)
+% output: daily flow
+
+%%
+% get the flow for specific store
+data=importdata('1862_pay_Info.txt');  %records all payment info in specific store
+num_data_row=size(data,1);
+pay_info=zeros(num_data_row,1); % records selective payment info in specific store
+for i=1:num_data_row
+    pay_info(i,:)=data(i,3)*10000+data(i,4)*100+data(i,5);
+end
+pay_info=sort(pay_info);
+pay_info=[pay_info,zeros(num_data_row,1)];
+date=0;
+for i=1:num_data_row
+    if pay_info(i,1)~=date
+        date=pay_info(i,1);
+        j=i;
+        pay_info(j,2)=pay_info(j,2)+1;
+    else
+        pay_info(j,2)=pay_info(j,2)+1;
+    end
+end
+flow=zeros(0,2);  %records the flow in specific store on everyday
+for i=1:num_data_row
+    if pay_info(i,2)~=0
+        flow=[flow;pay_info(i,:)];
+    end
+end
+num_flow_row=size(flow,1);
+plot([1:num_flow_row],flow(:,2));
+title('daily flow');
+
+%%
+% get the 'weather_info' for specific store
+[col1, col2,col3,col4,col5] = textread('1862_weather.txt','%n%n%n%n%n%*[^\n]','delimiter',' ');
+data_weather=[col1, col2,col3,col4,col5];
+num_data_weather_row=size(data_weather,1);
+weather_info=zeros(num_data_weather_row,3);
+for i=1:num_data_weather_row
+    weather_info(i,1)=data_weather(i,1)*10000+data_weather(i,2)*100+data_weather(i,3);
+    weather_info(i,2)=data_weather(i,4);
+    weather_info(i,3)=data_weather(i,5);
+end
+
+%%
+% get 'flow_weather' for specific store
+flow_weather=zeros(num_flow_row,4);
+for i=1:num_flow_row
+    date=flow(i,1);
+    index=find(weather_info==date);
+    flow_weather(i,1:2)=flow(i,1:2);
+    flow_weather(i,3:4)=weather_info(index,2:3);
+end
+
+%%
+% get 'traingset' and 'testset' for specific store: weekday, max temp, min temp, flow
+trainingset=zeros(num_flow_row-119-14,4);
+testset=zeros(14,4);
+for i=120:num_flow_row
+    d=mod(flow_weather(i,1),100);
+    m=(mod(flow_weather(i,1),10000)-d)/100;
+    y=(mod(flow_weather(i,1),1000000)-100*m-d)/10000;
+    c=(mod(flow_weather(i,1),100000000)-10000*y-100*m-d)/1000000;
+    w=y+floor(y/4)+floor(c/4)-2*c+floor(26*(m+1)/10)+d-1;
+    w=mod(w,7);
+    if w==0
+        w=7;
+    end
+    if i<num_flow_row-13
+        trainingset(i-119,1)=w;
+        trainingset(i-119,2:3)=flow_weather(i,3:4);
+        trainingset(i-119,4)=flow_weather(i,2);
+    else
+        testset(i-(num_flow_row-14),1)=w;
+        testset(i-(num_flow_row-14),2:3)=flow_weather(i,3:4);
+        testset(i-(num_flow_row-14),4)=flow_weather(i,2);
+    end
+end
+
+%%
+% linear regression
+X=[ones(size(trainingset,1),1),trainingset(:,1),trainingset(:,2),trainingset(:,3)];
+Y=trainingset(:,4);
+[b,bint]=regress(Y,X);
+X_test=[ones(size(testset,1),1),testset(:,1),testset(:,2),testset(:,3)];
+Y_test=testset(:,4);
+Y_Prediction=X_test*b;
+Loss=sum(abs((Y_Prediction-Y_test)./(Y_Prediction+Y_test)))/14;
+figure;
+hold on;
+plot([1:14],Y_test,'k');
+plot([1:14],Y_Prediction,'r');
+title('flow prediction');
+legend('test','prediction');
+hold off;
+
+%%
+% Support Vector Regression
+svr = fitrsvm(X,Y,'kernelfunction','rbf','KernelScale','auto','Standardize',true,'OutlierFraction',0.5);
+Y_Prediction2=predict(svr,X_test);
+Loss2=sum(abs((Y_Prediction2-Y_test)./(Y_Prediction2+Y_test)))/14;
+figure;
+hold on;
+plot([1:14],Y_test,'k');
+plot([1:14],Y_Prediction2,'r');
+title('flow prediction');
+legend('test','prediction');
+hold off;
+
+[Y_Prediction,Y_test];
+[Y_Prediction2,Y_test];
+
+
+
+
