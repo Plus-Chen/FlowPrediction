@@ -3,7 +3,7 @@
 % input: weather information (only maximum and minimum temperature)
 % output: daily flow
 % Author：chenjiahao
-
+% Date: 20170208
 %%
 % get the flow for specific store
 data=importdata('1862_pay_Info.txt');  %records all payment info in specific store
