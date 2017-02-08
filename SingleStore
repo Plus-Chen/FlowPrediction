@@ -2,6 +2,7 @@
 % input: date information (weekday, holiday)
 % input: weather information (only maximum and minimum temperature)
 % output: daily flow
+% Author：chenjiahao
 
 %%
 % get the flow for specific store
@@ -53,26 +54,39 @@ for i=1:num_flow_row
     index=find(weather_info==date);
     flow_weather(i,1:2)=flow(i,1:2);
     flow_weather(i,3:4)=weather_info(index,2:3);
+    %     flow_weather(i,3:4)=[0,0];
 end
 
 %%
 % get 'traingset' and 'testset' for specific store: weekday, max temp, min temp, flow
-trainingset=zeros(num_flow_row-119-14,4);
+startsample=119;
+trainingset=zeros(num_flow_row-startsample-14,4);
 testset=zeros(14,4);
-for i=120:num_flow_row
-    d=mod(flow_weather(i,1),100);
-    m=(mod(flow_weather(i,1),10000)-d)/100;
-    y=(mod(flow_weather(i,1),1000000)-100*m-d)/10000;
-    c=(mod(flow_weather(i,1),100000000)-10000*y-100*m-d)/1000000;
+for i=startsample+1:num_flow_row
+    %用蔡勒公式计算星期
+    day=mod(flow_weather(i,1),100);
+    months=(mod(flow_weather(i,1),10000)-day)/100;
+    year=(flow_weather(i,1)-100*months-day)/10000;
+    if months<=2
+        c=floor((year-1)/100);
+        y=mod((year-1),100);
+        m=months+12;
+        d=day;
+    else
+        c=floor(year/100);
+        y=mod(year,100);
+        m=months;
+        d=day;
+    end
     w=y+floor(y/4)+floor(c/4)-2*c+floor(26*(m+1)/10)+d-1;
     w=mod(w,7);
     if w==0
         w=7;
     end
     if i<num_flow_row-13
-        trainingset(i-119,1)=w;
-        trainingset(i-119,2:3)=flow_weather(i,3:4);
-        trainingset(i-119,4)=flow_weather(i,2);
+        trainingset(i-startsample,1)=w;
+        trainingset(i-startsample,2:3)=flow_weather(i,3:4);
+        trainingset(i-startsample,4)=flow_weather(i,2);
     else
         testset(i-(num_flow_row-14),1)=w;
         testset(i-(num_flow_row-14),2:3)=flow_weather(i,3:4);
@@ -112,7 +126,6 @@ hold off;
 
 [Y_Prediction,Y_test];
 [Y_Prediction2,Y_test];
-
 
 
 
